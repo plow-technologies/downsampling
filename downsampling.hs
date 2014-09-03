@@ -121,9 +121,11 @@ minfun (x,y) = (x + y - abs (x-y)) / 2
 -- > ( 1-p    p )
 -- > (  -p  1-p )
 --
---   This linear isomorphism enjoys two properties:
+--   This linear isomorphism enjoys these properties:
 --
 --   * Both rows (columns) are orthogonal (orthonormal if @p@ is either one or zero).
+--
+--   * Since both rows are non-zero, by the previous property, @f@ is invertible.
 --
 --   * @(fst . f) (1,0) + (fst . f) (0,1) = 1@
 --
