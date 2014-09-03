@@ -68,47 +68,74 @@ tau = 2*pi
 theFunction :: Float -> Float
 theFunction x = scaling * sin (tau * outSpeed * x * sin (tau * inSpeed * x)) + 1
 
--- theData :: BinList Float
--- theData = fromJust $ BL.fromList [ theFunction $ fromIntegral i | i <- [1 .. theSize] ]
+theData :: BinList Float
+theData = fromJust $ BL.fromList [ theFunction $ fromIntegral i | i <- [1 .. theSize] ]
 
+{-
 theData :: BinList Float
 theData = fromJust . BL.fromList.(fmap $ (* scaling).fromIntegral) . concat . replicate 256 $ lst
  where
    lst :: [Integer]
    lst = [0,0,2,1,0,0,0,0]
-   
+-} 
 
-data Option = Identity | Minimum | Average | Average2 deriving (Eq,Ord,Show)
+data Option = Identity | Minimum | Average | Average2 | Linear deriving (Eq,Ord,Show)
 
 instance Enum Option where
   succ Identity = Minimum
   succ Minimum  = Average
   succ Average  = Average2
-  succ Average2 = Average2
+  succ Average2 = Linear
+  succ Linear   = Linear
   pred Identity = Identity
   pred Minimum  = Identity
   pred Average  = Minimum
   pred Average2 = Average
+  pred Linear   = Average2
 
   toEnum i
     | i <= 0 = Identity
     | i == 1 = Minimum
     | i == 2 = Average
-    | otherwise = Average2
+    | i == 3 = Average2
+    | otherwise = Linear
 
   fromEnum Identity = 0
   fromEnum Minimum  = 1
   fromEnum Average  = 2
   fromEnum Average2 = 3
+  fromEnum Linear   = 4
 
 allOptions :: [Option]
-allOptions = [Identity .. Average2]
+allOptions = [Identity .. Linear]
 
 maxfun :: (Float,Float) -> Float
 maxfun (x,y) = (x + y + abs (x-y)) / 2
 
 minfun :: (Float,Float) -> Float
 minfun (x,y) = (x + y - abs (x-y)) / 2
+
+-- | Given a number @p@ from 0 to 1, 'olinearBijection' builds a linear isomorphism @f@
+--   with matrix
+--
+-- > ( 1-p    p )
+-- > (  -p  1-p )
+--
+--   This linear isomorphism enjoy two properties:
+--
+--   * Both rows (columns) are orthogonal (orthonormal if @p@ is either one or zero).
+--
+--   * @(fst . f) (1,0) + (fst . f) (0,1) = 1@
+--
+olinearBijection :: Float -> Bijection (Float,Float) (Float,Float)
+olinearBijection p =
+  let q = 1 - p
+      d = p^2 + q^2
+      pd = p / d
+      qd = q / d
+  in  Bijection
+        (\(x,y) -> ( q  * x + p  * y , (-p) * x + q  * y ) )
+        (\(x,y) -> ( qd * x - pd * y ,   pd * x + qd * y ) )
 
 toBijection :: Option -> Bijection (Float,Float) (Float,Float)
 toBijection Identity = Bijection id id
@@ -121,6 +148,7 @@ toBijection Average2 =
   Bijection
     (\(x,y) -> ((x+y)/2,(x-y)/4))
     (\(x,y) -> (x+2*y,x-2*y))
+toBijection Linear = olinearBijection (1/4)
 
 allTransforms :: Map Option (Bijection (BinList Float) (BinList Float))
 allTransforms = M.fromList $ fmap (\o -> (o,binaryTransform $ toBijection o)) allOptions
